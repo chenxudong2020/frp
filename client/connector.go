@@ -96,6 +96,8 @@ func (c *defaultConnectorImpl) Open() error {
 				MaxIdleTimeout:     time.Duration(c.cfg.Transport.QUIC.MaxIdleTimeout) * time.Second,
 				MaxIncomingStreams: int64(c.cfg.Transport.QUIC.MaxIncomingStreams),
 				KeepAlivePeriod:    time.Duration(c.cfg.Transport.QUIC.KeepalivePeriod) * time.Second,
+				// Enable BBR congestion control
+				CongestionController: "bbr",
 			})
 		if err != nil {
 			return err
