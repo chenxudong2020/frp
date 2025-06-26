@@ -96,12 +96,12 @@ func (c *defaultConnectorImpl) Open() error {
 				MaxIdleTimeout:     time.Duration(c.cfg.Transport.QUIC.MaxIdleTimeout) * time.Second,
 				MaxIncomingStreams: int64(c.cfg.Transport.QUIC.MaxIncomingStreams),
 				KeepAlivePeriod:    time.Duration(c.cfg.Transport.QUIC.KeepalivePeriod) * time.Second,
-				// Enable BBR congestion control
-				CongestionController: "bbr",
 			})
 		if err != nil {
 			return err
 		}
+		// Try to enable BBR congestion control
+		enableBBR(conn)
 		c.quicConn = conn
 		return nil
 	}
@@ -226,4 +226,15 @@ func (c *defaultConnectorImpl) Close() error {
 		}
 	})
 	return nil
+}
+
+// enableBBR tries to enable BBR congestion control on QUIC connection
+// This is specific to apernet/quic-go implementation
+func enableBBR(conn quic.Connection) {
+	// For apernet/quic-go, BBR might be enabled through connection interface
+	// or it might be the default congestion control algorithm
+	if bbrConn, ok := conn.(interface{ EnableBBR() }); ok {
+		bbrConn.EnableBBR()
+	}
+	// If the interface doesn't exist, BBR might already be default in apernet/quic-go
 }

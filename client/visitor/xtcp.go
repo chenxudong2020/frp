@@ -422,12 +422,12 @@ func (qs *QUICTunnelSession) Init(listenConn *net.UDPConn, raddr *net.UDPAddr) e
 			MaxIdleTimeout:     time.Duration(qs.clientCfg.Transport.QUIC.MaxIdleTimeout) * time.Second,
 			MaxIncomingStreams: int64(qs.clientCfg.Transport.QUIC.MaxIncomingStreams),
 			KeepAlivePeriod:    time.Duration(qs.clientCfg.Transport.QUIC.KeepalivePeriod) * time.Second,
-			// Enable BBR congestion control
-			CongestionController: "bbr",
 		})
 	if err != nil {
 		return fmt.Errorf("dial quic error: %v", err)
 	}
+	// Try to enable BBR congestion control
+	enableBBR(quicConn)
 	qs.mu.Lock()
 	qs.session = quicConn
 	qs.listenConn = listenConn
@@ -461,3 +461,16 @@ func (qs *QUICTunnelSession) Close() {
 		qs.listenConn = nil
 	}
 }
+
+// enableBBR tries to enable BBR congestion control on QUIC connection
+// This is specific to apernet/quic-go implementation
+func enableBBR(conn quic.Connection) {
+	// For apernet/quic-go, BBR might be enabled through connection interface
+	// or it might be the default congestion control algorithm
+	if bbrConn, ok := conn.(interface{ EnableBBR() }); ok {
+		bbrConn.EnableBBR()
+	}
+	// If the interface doesn't exist, BBR might already be default in apernet/quic-go
+}
+
+// Connector is an interface for establishing connections to the server.

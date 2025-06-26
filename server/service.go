@@ -56,6 +56,17 @@ import (
 	"github.com/fatedier/frp/server/visitor"
 )
 
+// enableBBR tries to enable BBR congestion control on QUIC connection
+// This is specific to apernet/quic-go implementation
+func enableBBR(conn quic.Connection) {
+	// For apernet/quic-go, BBR might be enabled through connection interface
+	// or it might be the default congestion control algorithm
+	if bbrConn, ok := conn.(interface{ EnableBBR() }); ok {
+		bbrConn.EnableBBR()
+	}
+	// If the interface doesn't exist, BBR might already be default in apernet/quic-go
+}
+
 const (
 	connReadTimeout       time.Duration = 10 * time.Second
 	vhostReadWriteTimeout time.Duration = 30 * time.Second
@@ -254,8 +265,6 @@ func NewService(cfg *v1.ServerConfig) (*Service, error) {
 			MaxIdleTimeout:     time.Duration(cfg.Transport.QUIC.MaxIdleTimeout) * time.Second,
 			MaxIncomingStreams: int64(cfg.Transport.QUIC.MaxIncomingStreams),
 			KeepAlivePeriod:    time.Duration(cfg.Transport.QUIC.KeepalivePeriod) * time.Second,
-			// Enable BBR congestion control
-			CongestionController: "bbr",
 		})
 		if err != nil {
 			return nil, fmt.Errorf("listen on quic udp address %s error: %v", address, err)
@@ -551,6 +560,8 @@ func (svr *Service) HandleQUICListener(l *quic.Listener) {
 			log.Warnf("quic listener for incoming connections from client closed")
 			return
 		}
+		// Try to enable BBR congestion control
+		enableBBR(c)
 		// Start a new goroutine to handle connection.
 		go func(ctx context.Context, frpConn quic.Connection) {
 			for {

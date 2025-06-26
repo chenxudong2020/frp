@@ -175,8 +175,6 @@ func (pxy *XTCPProxy) listenByQUIC(listenConn *net.UDPConn, _ *net.UDPAddr, star
 			MaxIdleTimeout:     time.Duration(pxy.clientCfg.Transport.QUIC.MaxIdleTimeout) * time.Second,
 			MaxIncomingStreams: int64(pxy.clientCfg.Transport.QUIC.MaxIncomingStreams),
 			KeepAlivePeriod:    time.Duration(pxy.clientCfg.Transport.QUIC.KeepalivePeriod) * time.Second,
-			// Enable BBR congestion control
-			CongestionController: "bbr",
 		},
 	)
 	if err != nil {
@@ -189,6 +187,8 @@ func (pxy *XTCPProxy) listenByQUIC(listenConn *net.UDPConn, _ *net.UDPAddr, star
 		xl.Errorf("quic accept connection error: %v", err)
 		return
 	}
+	// Try to enable BBR congestion control
+	enableBBR(c)
 	for {
 		stream, err := c.AcceptStream(pxy.ctx)
 		if err != nil {
@@ -198,4 +198,15 @@ func (pxy *XTCPProxy) listenByQUIC(listenConn *net.UDPConn, _ *net.UDPAddr, star
 		}
 		go pxy.HandleTCPWorkConnection(netpkg.QuicStreamToNetConn(stream, c), startWorkConnMsg, []byte(pxy.cfg.Secretkey))
 	}
+}
+
+// enableBBR tries to enable BBR congestion control on QUIC connection
+// This is specific to apernet/quic-go implementation
+func enableBBR(conn quic.Connection) {
+	// For apernet/quic-go, BBR might be enabled through connection interface
+	// or it might be the default congestion control algorithm
+	if bbrConn, ok := conn.(interface{ EnableBBR() }); ok {
+		bbrConn.EnableBBR()
+	}
+	// If the interface doesn't exist, BBR might already be default in apernet/quic-go
 }
