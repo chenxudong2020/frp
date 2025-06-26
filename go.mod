@@ -84,4 +84,4 @@ require (
 
 // TODO(fatedier): Temporary use the modified version, update to the official version after merging into the official repository.
 replace github.com/hashicorp/yamux => github.com/fatedier/yamux v0.0.0-20230628132301-7aca4898904d
-replace github.com/quic-go/quic-go => github.com/apernet/quic-go v0.4.0
+replace github.com/quic-go/quic-go => github.com/apernet/quic-go v0.0.0-20240814080314-67b7e2d88211
